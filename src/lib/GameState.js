@@ -243,38 +243,78 @@ export class GameState {
 
   makeMove(move) {
     this.setEdge(move);
+    // After making the move, check if it completes any boxes for the current player
+    const completedBoxes = this.findAdjacentBoxes(move).filter((box) =>
+      this.isBoxComplete(box)
+    );
+
+    if (completedBoxes.length > 0) {
+      // If the move completed any boxes, award points to the current player
+      this.players.scores[this.players.current] += completedBoxes.length;
+    } else {
+      // Switch turns if no boxes are completed
+      this.players.current = this.players.current === 0 ? 1 : 0;
+    }
   }
 
   findBestMove() {
     let bestMove = null;
     let minRisk = Infinity; // We will assign a "risk" score to moves
 
-    // Loop over all edges to find the best move
+    // Step 1: Prioritize completing boxes
     for (let key in this.edges) {
       let edge = this.edges[key];
-      // Skip edges that are already drawn
-      if (edge.drawn) continue;
 
-      // Check if drawing this edge completes a box
-      let boxes = this.findAdjacentBoxes(edge);
+      if (!edge.drawn) {
+        const adjacentBoxes = this.findAdjacentBoxes(edge);
 
-      let completedBoxes = boxes.filter((box) =>
-        this.isBoxOneMoveFromCompletion(box)
-      );
-
-      if (completedBoxes.length > 0) {
-        // If we can complete a box, this is the best move
-        return edge; // Prioritize completing a box
-      }
-
-      // If no box is completed, calculate the risk of the move
-      let risk = this.calculateMoveRisk(boxes);
-      if (risk < minRisk) {
-        minRisk = risk;
-        bestMove = edge; // Update the best move based on risk
-        // console.log(risk, bestMove);
+        // Check if any of the adjacent boxes can be completed by drawing this edge
+        if (adjacentBoxes.some((box) => this.isBoxOneMoveFromCompletion(box))) {
+          return edge; // Complete a box if possible
+        }
       }
     }
+    for (let key in this.edges) {
+      let edge = this.edges[key];
+
+      if (!edge.drawn) {
+        const adjacentBoxes = this.findAdjacentBoxes(edge);
+
+        // Calculate the risk associated with this move
+        let risk = this.calculateMoveRisk(adjacentBoxes);
+
+        if (risk < minRisk) {
+          minRisk = risk;
+          bestMove = edge;
+        }
+      }
+    }
+    // // Loop over all edges to find the best move
+    // for (let key in this.edges) {
+    //   let edge = this.edges[key];
+    //   // Skip edges that are already drawn
+    //   if (edge.drawn) continue;
+
+    //   // Check if drawing this edge completes a box
+    //   let boxes = this.findAdjacentBoxes(edge);
+
+    //   let completedBoxes = boxes.filter((box) =>
+    //     this.isBoxOneMoveFromCompletion(box)
+    //   );
+
+    //   if (completedBoxes.length > 0) {
+    //     // If we can complete a box, this is the best move
+    //     return edge; // Prioritize completing a box
+    //   }
+
+    //   // If no box is completed, calculate the risk of the move
+    //   let risk = this.calculateMoveRisk(boxes);
+    //   if (risk < minRisk) {
+    //     minRisk = risk;
+    //     bestMove = edge; // Update the best move based on risk
+    //     // console.log(risk, bestMove);
+    //   }
+    // }
 
     return bestMove;
   }
@@ -294,16 +334,33 @@ export class GameState {
     return drawnEdges === 3;
   }
 
-  calculateMoveRisk(boxes) {
-    // If we have adjacent boxes, calculate how many are 3 edges completed
+  isBoxComplete(box) {
+    // Check if all 4 sides of the box are drawn
+    return Object.values(box.edges).every((edge) => edge.drawn);
+  }
+
+  calculateMoveRisk(adjacentBoxes, checkOpponentRisk = false) {
     let risk = 0;
-    boxes.forEach((box) => {
+
+    adjacentBoxes.forEach((box) => {
       if (this.isBoxOneMoveFromCompletion(box)) {
-        risk++; // High risk if this move gives the opponent a chance to complete a box
+        risk += 1;
+      }
+
+      if (checkOpponentRisk && this.willGiveOpponentBox(box)) {
+        risk += 2; // Higher risk if this move gives the opponent a box
       }
     });
 
     return risk; // Lower risk is better
+  }
+
+  willGiveOpponentBox(box) {
+    // Check if the opponent will complete a box after this move
+    let drawnEdges = Object.values(box.edges).filter((e) => e.drawn).length;
+
+    // If the box has 2 or fewer edges drawn, the opponent can complete it after this move
+    return drawnEdges === 2;
   }
 
   playBestMove() {
