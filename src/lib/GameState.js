@@ -259,7 +259,7 @@ export class GameState {
 
   findBestMove() {
     let bestMove = null;
-    let minRisk = Infinity; // We will assign a "risk" score to moves
+    let minRisk = Infinity;
 
     // Step 1: Prioritize completing boxes
     for (let key in this.edges) {
@@ -268,53 +268,58 @@ export class GameState {
       if (!edge.drawn) {
         const adjacentBoxes = this.findAdjacentBoxes(edge);
 
-        // Check if any of the adjacent boxes can be completed by drawing this edge
+        // If the move completes a box, prioritize it
         if (adjacentBoxes.some((box) => this.isBoxOneMoveFromCompletion(box))) {
-          return edge; // Complete a box if possible
+          return edge;
         }
       }
     }
+
+    // Step 2: Find the least risky move (that does not give the opponent an easy win)
     for (let key in this.edges) {
       let edge = this.edges[key];
 
       if (!edge.drawn) {
         const adjacentBoxes = this.findAdjacentBoxes(edge);
+        let risk = this.calculateMoveRisk(
+          adjacentBoxes,
+          /* checkOpponentRisk= */ true
+        );
 
-        // Calculate the risk associated with this move
-        let risk = this.calculateMoveRisk(adjacentBoxes);
-
+        // Keep track of the move with the lowest risk
         if (risk < minRisk) {
           minRisk = risk;
           bestMove = edge;
         }
       }
     }
-    // // Loop over all edges to find the best move
-    // for (let key in this.edges) {
-    //   let edge = this.edges[key];
-    //   // Skip edges that are already drawn
-    //   if (edge.drawn) continue;
 
-    //   // Check if drawing this edge completes a box
-    //   let boxes = this.findAdjacentBoxes(edge);
+    // Step 3: If no safe move, sacrifice two squares (if necessary)
+    if (!bestMove) {
+      // Find a move that sacrifices two boxes, but minimizes further risk
+      let leastBadMove = null;
+      let leastBadRisk = Infinity;
 
-    //   let completedBoxes = boxes.filter((box) =>
-    //     this.isBoxOneMoveFromCompletion(box)
-    //   );
+      for (let key in this.edges) {
+        let edge = this.edges[key];
 
-    //   if (completedBoxes.length > 0) {
-    //     // If we can complete a box, this is the best move
-    //     return edge; // Prioritize completing a box
-    //   }
+        if (!edge.drawn) {
+          const adjacentBoxes = this.findAdjacentBoxes(edge);
+          let risk = this.calculateMoveRisk(
+            adjacentBoxes,
+            /* checkOpponentRisk= */ false
+          );
 
-    //   // If no box is completed, calculate the risk of the move
-    //   let risk = this.calculateMoveRisk(boxes);
-    //   if (risk < minRisk) {
-    //     minRisk = risk;
-    //     bestMove = edge; // Update the best move based on risk
-    //     // console.log(risk, bestMove);
-    //   }
-    // }
+          // Choose the move that results in sacrificing two boxes, but with the lowest overall risk
+          if (risk < leastBadRisk) {
+            leastBadRisk = risk;
+            leastBadMove = edge;
+          }
+        }
+      }
+
+      return leastBadMove; // This sacrifices two squares
+    }
 
     return bestMove;
   }
