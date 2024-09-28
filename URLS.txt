@@ -1,0 +1,7 @@
+https://github.com/ccckmit/ai6/blob/d5ab533315c5343d967485e17443be16ee23cc2d/book/chess/gomoku.js
+https://github.com/kalem-edlin/trie-scrabble-search
+https://github.com/codybarr/scrabble
+https://github.com/kamilmielnik/trie
+https://github.com/TomBrennan91/ScrabbleBot
+https://teara.govt.nz/en/diagram/12800/parts-of-an-ant
+https://www.packetfence.org/
